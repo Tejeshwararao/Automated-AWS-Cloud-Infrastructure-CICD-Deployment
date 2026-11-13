@@ -40,7 +40,7 @@ jobs:
             "echo '$GH_TOKEN' | docker login ghcr.io -u '$GH_USER' --password-stdin && \
              docker pull $IMAGE_LC:latest && \
              docker rm -f myapp || true && \
-             docker run -d --name myapp -p 80:5000 --restart unless-stopped $IMAGE_LC:latest"
+             docker run -d --name myapp -p 80:5000 -v /var/log/myapp:/logs --restart unless-stopped $IMAGE_LC:latest"
 
       - name: Health check
         run: |
