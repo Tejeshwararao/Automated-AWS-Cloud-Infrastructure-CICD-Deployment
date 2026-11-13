@@ -1,0 +1,48 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches: [main]
+
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/myapp
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Build and push image
+        run: |
+          IMAGE_LC=$(echo "$IMAGE" | tr '[:upper:]' '[:lower:]')
+          docker build -t $IMAGE_LC:latest ./app
+          docker push $IMAGE_LC:latest
+
+      - name: Deploy to EC2
+        env:
+          SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          HOST: ${{ secrets.EC2_HOST }}
+          GH_USER: ${{ github.actor }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          IMAGE_LC=$(echo "$IMAGE" | tr '[:upper:]' '[:lower:]')
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/key && chmod 600 ~/.ssh/key
+          ssh -o StrictHostKeyChecking=accept-new -i ~/.ssh/key ec2-user@$HOST \
+            "echo '$GH_TOKEN' | docker login ghcr.io -u '$GH_USER' --password-stdin && \
+             docker pull $IMAGE_LC:latest && \
+             docker rm -f myapp || true && \
+             docker run -d --name myapp -p 80:5000 --restart unless-stopped $IMAGE_LC:latest"
+
+      - name: Health check
+        run: |
+          sleep 10
+          curl --fail http://${{ secrets.EC2_HOST }}/health
