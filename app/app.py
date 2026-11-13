@@ -7,7 +7,7 @@ app = Flask(__name__)
 @app.route("/")
 def home():
     app.logger.info("Home page requested")
-    return "<h1>Hello from AWS!</h1><p>Deployed with Terraform, Docker and GitHub Actions.</p>"
+    return "<h1>This is Teja DevOps Engineer!</h1><p>Deployed with Terraform, Docker and GitHub Actions.</p>"
 
 @app.route("/health")
 def health():
